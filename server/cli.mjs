@@ -33,7 +33,9 @@ const TIMEOUT_MS = Number(process.env.WEBAGENTS_TIMEOUT || 300000);
 const VERSION = '0.7.0';
 const WS_URL = `ws://127.0.0.1:${PORT}`;
 const ATTACH_MAX_BYTES = 60 * 1024;
-const SITES = ['deepseek', 'qwen'];
+const SITES = ['deepseek', 'qwen', 'chatglm'];
+const SITE_ALIASES = { glm: 'chatglm', zhipu: 'chatglm' };
+export const normalizeSite = (s) => SITE_ALIASES[String(s || '').toLowerCase()] || String(s || '').toLowerCase();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const short = (s, n = 200) => (typeof s === 'string' ? s.slice(0, n) : s);
@@ -155,7 +157,7 @@ async function ensureExtensionReady({ budgetMs = Number(process.env.WEBAGENTS_EX
 // （另加 input = 参数/输入校验错误，尚未进入执行管线）
 
 const HINTS = {
-  input: '检查参数：prompt 非空；--attach 单文件 ≤60KB；站点为 deepseek|qwen',
+  input: '检查参数：prompt 非空；--attach 单文件 ≤60KB；站点为 deepseek|qwen|chatglm',
   connect: '先跑 `status`；再 `bridge start` 把桥驻留起来（外部残留的旧桥要 `bridge stop --force` 换掉）；仍不通则确认 Edge 扩展已启用。',
   queue: '同站点前序任务未结束（排队上限 4 分钟）；稍候重试',
   send: '发送未生效或页面被人为操作过；用 `inspect <site>` 看现场（不要用 probe，会整页重载毁掉现场）',
@@ -242,6 +244,7 @@ const OPT_ONOFF = { on: true, off: false, 'true': true, 'false': false, yes: tru
 const QWEN_MODES = ['fast', 'think', 'research'];
 
 export function buildOptions(site, flags = {}) {
+  const normSite = normalizeSite(site);
   const opts = {};
   const onOff = (flagName, key) => {
     const raw = flags[flagName];
@@ -251,19 +254,23 @@ export function buildOptions(site, flags = {}) {
     }
     opts[key] = OPT_ONOFF[String(raw).toLowerCase()];
   };
-  if (site === 'deepseek') {
+  if (normSite === 'deepseek') {
     onOff('--think', 'deepThink');
     onOff('--search', 'search');
     if (flags['--mode']) throw usageErr('--mode 只适用于 qwen；deepseek 用 --think/--search');
-  } else if (site === 'qwen') {
+  } else if (normSite === 'qwen') {
     const m = flags['--mode'];
     if (m !== undefined) {
       if (!QWEN_MODES.includes(m)) throw usageErr(`--mode 只接受 ${QWEN_MODES.join('|')}，收到 ${m}`);
       opts.mode = m;
     }
     if (flags['--think'] !== undefined || flags['--search'] !== undefined) {
-      throw usageErr('--think/--search 只适用于 deepseek；qwen 用 --mode');
+      throw usageErr('--think/--search 只适用于 deepseek/chatglm；qwen 用 --mode');
     }
+  } else if (normSite === 'chatglm') {
+    onOff('--think', 'deepThink');
+    onOff('--search', 'search');
+    if (flags['--mode']) throw usageErr('--mode 只适用于 qwen；chatglm 用 --think/--search');
   }
   return Object.keys(opts).length ? opts : null;
 }
@@ -383,13 +390,13 @@ export function dedupeEntries(entries) {
 
 const USAGE = `WEBAGENTS CLI v${VERSION}
 
-  node server/cli.mjs ask <deepseek|qwen> "prompt" [--out <file>] [--attach <file>]...
+  node server/cli.mjs ask <deepseek|qwen|chatglm> "prompt" [--out <file>] [--attach <file>]...
                     [--prompt-file <file>|-] [--json] [--why]
                     [--continue <runId>|last|here] [--protocol <file>] [--schema <file>]
-                    [--think on|off] [--search on|off]      # deepseek：深度思考 / 联网搜索
+                    [--think on|off] [--search on|off]      # deepseek/chatglm：深度思考 / 联网搜索
                     [--mode fast|think|research]            # qwen：对话模式
   node server/cli.mjs runs [--limit n] [--site <s>] [--errors] [--dedupe] [--why <runId>|last]
-  node server/cli.mjs inspect <deepseek|qwen>
+  node server/cli.mjs inspect <deepseek|qwen|chatglm>
   node server/cli.mjs status
   node server/cli.mjs doctor
   node server/cli.mjs bridge start ｜ bridge stop [--force]
@@ -418,8 +425,8 @@ function resolveContinue(flags, site) {
 }
 
 async function cmdAsk({ pos, flags }) {
-  const site = pos[0];
-  if (!SITES.includes(site)) throw usageErr(`ask 的站点必须是 ${SITES.join(' | ')}，收到: ${site || '(空)'}`);
+  const site = normalizeSite(pos[0]);
+  if (!SITES.includes(site)) throw usageErr(`ask 的站点必须是 ${SITES.join(' | ')}，收到: ${pos[0] || '(空)'}`);
   const prompt = pos.slice(1).join(' ');
   const cont = resolveContinue(flags, site);
   const askOpts = buildOptions(site, flags);
@@ -495,7 +502,7 @@ async function cmdAsk({ pos, flags }) {
     // 否则 "--think off" 看着生效了、实际跑的却是开思考的会话。
     if (askOpts && r.options && typeof r.options === 'object') {
       const drift = Object.entries(askOpts)
-        .filter(([k, v]) => r.options[k] !== undefined && r.options[k] !== v)
+        .filter(([k, v]) => r.options[k] !== null && r.options[k] !== undefined && r.options[k] !== v)
         .map(([k, v]) => `${k}: 请求 ${v} → 实际 ${r.options[k]}`);
       if (drift.length) console.error(`警告：开关被扩展设置页的强制默认值覆盖 —— ${drift.join('；')}`);
     }
@@ -578,7 +585,7 @@ async function cmdRuns({ flags }) {
 }
 
 async function cmdInspect({ pos }) {
-  const site = pos[0];
+  const site = normalizeSite(pos[0]);
   if (!SITES.includes(site)) throw usageErr(`inspect 的站点必须是 ${SITES.join(' | ')}（只读查看，不导航；现场取证唯一入口）`);
   const pre = await ensureExtensionReady({ budgetMs: 15_000 });
   if (!pre.ok) {

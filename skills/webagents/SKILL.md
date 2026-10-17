@@ -1,11 +1,11 @@
 ---
 name: webagents
-description: 用 DeepSeek/千问网页版作为 0 成本 subagent。CLI 原语：ask/runs/inspect/status/doctor。需要第二意见、批量思考、长文生成、代码审查、多轮任务时使用；失败时按 stage 判定表定位。
+description: 用 DeepSeek/千问/智谱清言网页版作为 0 成本 subagent。CLI 原语：ask/runs/inspect/status/doctor。需要第二意见、批量思考、长文生成、代码审查、多轮任务时使用；失败时按 stage 判定表定位。
 ---
 
 # WEBAGENTS CLI
 
-把 prompt 派给 DeepSeek / 千问网页版（真实登录会话），正文落盘，stdout 只有一行摘要。
+把 prompt 派给 DeepSeek / 千问 / 智谱清言网页版（真实登录会话），正文落盘，stdout 只有一行摘要。
 
 CLI 路径：`<本仓库>/server/cli.mjs`（下称 `$WA`）。
 
@@ -13,12 +13,14 @@ CLI 路径：`<本仓库>/server/cli.mjs`（下称 `$WA`）。
 
 ```bash
 node $WA ask deepseek "问题"                 # 摘要一行；正文写 %LOCALAPPDATA%\webagents\outputs\<runId>.md
+node $WA ask chatglm "问题"                  # 智谱清言（亦支持别名 glm / zhipu）
 node $WA ask qwen "问题" --out answer.md     # 指定落盘位置
 node $WA ask deepseek --prompt-file p.txt    # 大 prompt 走文件（不过 argv）
 node $WA ask deepseek "审查" --attach a.mjs --attach b.mjs   # 文件由 CLI 直读，不过你的上下文
 node $WA ask deepseek "追问" --continue last # 同会话追问（last / <runId> / here）
 node $WA ask deepseek "任务" --schema s.json # 要求 JSON 输出+校验，违规自动同会话修复一次
 node $WA ask deepseek "任务" --think off --search on      # 按调用指定开关（qwen 用 --mode）
+node $WA ask chatglm "任务" --think on --search off       # 智谱清言：深度思考 / 联网搜索
 node $WA ask qwen "任务" --mode think        # fast | think | research
 node $WA runs --errors                       # 排障第一步：先看记录，不要重跑
 node $WA runs --why last                     # 最近一次失败的完整诊断

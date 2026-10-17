@@ -250,6 +250,10 @@
         // 防御：极少数帧可能不套 v 直接下发消息对象
         mergeDeep(rec.root, one);
         rec.opCount++;
+      } else if (Array.isArray(one.parts)) {
+        // 智谱清言风格：data: { parts: [ { role: 'assistant', content: [...] } ] }
+        mergeDeep(rec.root, one);
+        rec.opCount++;
       }
     }
   }

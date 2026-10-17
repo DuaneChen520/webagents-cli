@@ -2,7 +2,7 @@
 
 **中文 | [English](README.en.md)**
 
-把 DeepSeek / 通义千问等**网页版聊天**变成你的 subagent：一个 Edge 扩展 + 一个本地 WebSocket 桥 + 一组命令行原语，让 AI agent（脚本、skill、人）直接向这些网页注入 prompt 并抓取回复，还可以**并行派发**任务给多个站点。
+把 DeepSeek / 通义千问 / 智谱清言等**网页版聊天**变成你的 subagent：一个 Edge 扩展 + 一个本地 WebSocket 桥 + 一组命令行原语，让 AI agent（脚本、skill、人）直接向这些网页注入 prompt 并抓取回复，还可以**并行派发**任务给多个站点。
 
 > 复用浏览器里已有的登录态，无需 API Key，无需逆向协议。
 
@@ -18,7 +18,8 @@ server/bridge.mjs — 单例桥（ws://127.0.0.1:8765）
 Edge 扩展 offscreen.js — 常驻 WS 连接（生命周期独立于 Service Worker）
 Edge 扩展 background.js — 任务路由 / 站点队列 / 完成判定
    ├─ chat.deepseek.com  常驻 pinned 标签页（content/deepseek.js）
-   └─ www.qianwen.com    常驻 pinned 标签页（content/qwen.js）
+   ├─ www.qianwen.com    常驻 pinned 标签页（content/qwen.js）
+   └─ chatglm.cn         常驻 pinned 标签页（content/chatglm.js）
 
 每个站点页内另有一条主世界流探针（content/stream-probe.js）：
 拦截响应流，提供"服务端已关闭流"这一完成硬信号与原始 markdown
@@ -36,10 +37,10 @@ Edge 扩展 background.js — 任务路由 / 站点队列 / 完成判定
   - `inspect <site>` — **只读查看当前页面状态，不导航不重载**。用于查看风控验证现场、回复区状态与流探针记录
   - `runs` — 读取运行记录，**排障首选**：不必重跑问答（`--errors` / `--why last` / `--dedupe`）
   - `status` — 查看扩展连接状态（含连接承载方式与各站点排队深度）
-  - `doctor` — 一键体检：版本口径 / 令牌配对 / 桥 / 扩展 / 两站适配器是否真在应答 / 近 24h 失败模式
+  - `doctor` — 一键体检：版本口径 / 令牌配对 / 桥 / 扩展 / 站点适配器是否真在应答 / 近 24h 失败模式
   - `bridge start|stop` — 显式驻留与收尾桥（长续任务期间共用一条连接）
 - **对话开关**（`ask` 时可指定，或在扩展设置页设默认值）：
-  - DeepSeek：`{ deepThink: true/false, search: true/false }`（深度思考 / 联网搜索）
+  - DeepSeek / 智谱清言：`{ deepThink: true/false, search: true/false }`（深度思考 / 联网搜索）
   - 千问：`{ mode: "fast" | "think" }`（快速 / 思考研究）
 - **工具栏 popup 浮窗**：把上述开关设为**强制默认值**，优先级高于调用参数；「默认」= 不干预页面当前状态
 - **并行派发**：多个站点的调用可同时进行（各自起后台 CLI 进程），跨站点独立标签页互不干扰
@@ -132,7 +133,7 @@ Edge 扩展 background.js — 任务路由 / 站点队列 / 完成判定
 
 1. 打开 `edge://extensions`，开启左下角「开发人员模式」
 2. 「加载解压缩的扩展」→ 选择本仓库的 `extension/` 目录
-3. 分别打开 `chat.deepseek.com` 和 `www.qianwen.com` 并登录
+3. 分别打开 `chat.deepseek.com`、`www.qianwen.com` 或 `chatglm.cn` 并登录
 4. （可选）把工具栏上的 WebAgents 图标固定住，点开即可配置默认对话开关
 
 ### 2. 装依赖并拉起桥
@@ -141,7 +142,7 @@ Edge 扩展 background.js — 任务路由 / 站点队列 / 完成判定
 
 ```bash
 node server/cli.mjs bridge start     # 驻留桥（Windows 走计划任务、macOS/Linux 走 detached 进程）
-node server/cli.mjs doctor           # 体检：桥 / 扩展 / 令牌 / 两站适配器是否真在应答
+node server/cli.mjs doctor           # 体检：桥 / 扩展 / 令牌 / 站点适配器是否真在应答
 ```
 
 不驻留也能用 —— 每条命令都会自拉一条桥（命令结束后可能被宿主回收，多付约 5 秒重连延迟）。
@@ -153,6 +154,7 @@ node server/cli.mjs doctor           # 体检：桥 / 扩展 / 令牌 / 两站�
 
 ```bash
 node server/cli.mjs ask deepseek "问题"                 # stdout 一行摘要，正文落盘 outputs/<runId>.md
+node server/cli.mjs ask chatglm "问题"                  # 智谱清言（亦支持别名 glm）
 node server/cli.mjs ask qwen "审查" --attach a.mjs      # 文件由 CLI 直读拼进 prompt（不过调用方上下文，≤60KB/个）
 node server/cli.mjs ask deepseek --prompt-file p.txt    # 大 prompt 走文件（绕开 argv 32767 字符上限）
 node server/cli.mjs ask deepseek "追问" --continue last # 同会话追问（last / <runId> / here），省上下文重建
@@ -160,7 +162,7 @@ node server/cli.mjs ask deepseek "任务" --schema s.json # JSON 输出+轻校�
 node server/cli.mjs ask deepseek "任务" --think off --search on  # 按调用指定开关（qwen 用 --mode fast|think|research）
 node server/cli.mjs ask qwen "任务" --mode think        # 不给开关则跟随站点页面残留状态，结果不可复现
 node server/cli.mjs runs --errors / --dedupe / --why last
-node server/cli.mjs inspect deepseek                    # 只读看现场（不导航）
+node server/cli.mjs inspect chatglm                     # 只读看现场（不导航）
 node server/cli.mjs status                              # 扩展连接状态
 node server/cli.mjs doctor                              # 一键体检（桥/扩展/令牌/版本/失败模式）
 ```

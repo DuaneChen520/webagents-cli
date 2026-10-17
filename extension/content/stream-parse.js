@@ -17,8 +17,8 @@
    */
   const TERMINAL = new Set([
     'FINISHED', 'INCOMPLETE', 'CONTENT_FILTER', 'CONTEXT_LENGTH_EXCEEDED', 'TIMEOUT',
-    // 通用兜底：其它站点可能用小写或同义词
-    'finished', 'done', 'completed', 'complete', 'end', 'ended', 'stop', 'stopped',
+    // 通用兜底：其它站点可能用小写或同义词（含智谱清言 finish）
+    'finished', 'finish', 'FINISH', 'done', 'completed', 'complete', 'end', 'ended', 'stop', 'stopped',
   ]);
   const RUNNING = new Set([
     'WIP', 'wip', 'RUNNING', 'running', 'PENDING', 'GENERATING', 'INITIALIZING', 'AWAITING_FIRST_CHANGE',
@@ -332,6 +332,24 @@
 
   function extractMarkdown(root, maxLen = 200000) {
     try {
+      // ChatGLM 风格：root.parts -> content[] ({type: "text", text: "..."})
+      if (root && Array.isArray(root.parts) && root.parts.length) {
+        const texts = [];
+        for (const part of root.parts) {
+          if (part && Array.isArray(part.content)) {
+            for (const item of part.content) {
+              if (item && item.type === 'text' && typeof item.text === 'string') {
+                texts.push(item.text);
+              }
+            }
+          }
+        }
+        if (texts.length) {
+          const res = texts.join('');
+          return res.length > maxLen ? res.slice(0, maxLen) : res;
+        }
+      }
+
       const frags = findFragmentArray(root);
       if (!Array.isArray(frags) || !frags.length) return '';
 

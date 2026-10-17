@@ -12,7 +12,7 @@ function bindSeg(id) {
   return { get, set };
 }
 
-const controls = ['dsDeepThink', 'dsSearch', 'qwenMode', 'throttleSec'];
+const controls = ['dsDeepThink', 'dsSearch', 'qwenMode', 'glmDeepThink', 'glmSearch', 'throttleSec'];
 
 /** 各类控件的初始选中值（throttleSec 缺省为 3 秒） */
 function initialSeg(id, d) {
@@ -43,6 +43,8 @@ async function save() {
     dsDeepThink: tri('dsDeepThink'),
     dsSearch: tri('dsSearch'),
     qwenMode: readSeg('qwenMode') || null,
+    glmDeepThink: tri('glmDeepThink'),
+    glmSearch: tri('glmSearch'),
     // 未选中任何档位时回落到默认 3 秒（保证「点保存」不会意外把节流变成 0/NaN）
     throttleSec: Number(readSeg('throttleSec') || 3) || 0,
   };

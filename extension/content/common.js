@@ -366,6 +366,9 @@
     '[class*="generating" i]', '[aria-label*="停止"]', '[aria-label*="stop" i]',
   ];
   function siteFeedback(ADAPTER) {
+    if (typeof ADAPTER.feedback === 'function') {
+      return ADAPTER.feedback();
+    }
     for (const sel of [...(ADAPTER.thinkingSel || []), ...FEEDBACK_FALLBACK_SEL]) {
       let els = [];
       try { els = document.querySelectorAll(sel); } catch { continue; }

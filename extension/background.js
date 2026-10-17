@@ -15,10 +15,12 @@ const TOKEN_KEY = 'bridgeToken';   // 桥接令牌存在 chrome.storage.local（
 
 const SITES = {
   deepseek: {
+    canonical: 'deepseek',
     url: 'https://chat.deepseek.com/',
     matches: ['https://chat.deepseek.com/*'],
   },
   qwen: {
+    canonical: 'qwen',
     url: 'https://www.qianwen.com/',
     matches: ['https://www.qianwen.com/*', 'https://qianwen.com/*', 'https://chat.qianwen.com/*'],
     legacyMatches: ['https://www.tongyi.com/*', 'https://tongyi.aliyun.com/*', 'https://chat.aliyun.com/*'],
@@ -33,7 +35,16 @@ const SITES = {
     surfaceOnAsk: true,
     askTimeoutMs: 420000,
   },
+  chatglm: {
+    canonical: 'chatglm',
+    url: 'https://chatglm.cn/main/alltoolsdetail',
+    matches: ['https://chatglm.cn/*', 'https://*.chatglm.cn/*'],
+    firstSignalMs: 25000,
+  },
 };
+// 站点别名支持：glm / zhipu 映射到 chatglm
+SITES.glm = SITES.chatglm;
+SITES.zhipu = SITES.chatglm;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -386,10 +397,14 @@ async function ensureTab(site) {
     // 防止被 Edge 休眠 + 归位首页（每次 ask 独立全新会话）；已在首页则跳过导航避免整页重载
     try {
       const curUrl = String(tab.url || '').split('?')[0].split('#')[0];
+      const curFull = String(tab.url || '');
       if (tab.discarded) {
         try { await chrome.tabs.reload(tab.id); } catch (err3) { console.log(`[webagents] ${site} 唤醒失败: ${err3.message}`); }
-      } else if (curUrl !== cfg.url) {
+      } else if (curUrl !== cfg.url || (site === 'chatglm' && /[?&]cid=/.test(curFull))) {
         await chrome.tabs.update(tab.id, { url: cfg.url, active: false });
+        if (site === 'chatglm') {
+          try { await chrome.tabs.reload(tab.id); } catch {}
+        }
       }
       try { await chrome.tabs.update(tab.id, { autoDiscardable: false }); } catch (err2) { console.log(`[webagents] ${site} 防休眠设置失败: ${err2.message}`); }
     } catch (err) {
@@ -413,14 +428,18 @@ async function ensureTab(site) {
       let cur = null;
       try { cur = await chrome.tabs.get(tab.id); } catch {}
       const path = String((cur && cur.url) || '').split('?')[0].split('#')[0];
-      const onHome = path === cfg.url;
+      const fullUrl = String((cur && cur.url) || '');
+      const onHome = site === 'chatglm' ? (path === cfg.url && !/[?&]cid=/.test(fullUrl)) : (path === cfg.url);
       let st = null;
       try { st = await tabsCall(tab.id, { type: 'state' }); } catch {}
       const stale = st && st.ok && st.count > 0;
       if ((!onHome || stale) && reloads < 3) {
         reloads++;
         console.log(`[webagents] ${site} 未归位(onHome=${onHome} url=${path})或残留回复(${stale ? st.count : 0}块)，刷新归位`);
-        try { await chrome.tabs.update(tab.id, { url: cfg.url, active: false }); } catch {}
+        try {
+          await chrome.tabs.update(tab.id, { url: cfg.url, active: false });
+          await chrome.tabs.reload(tab.id);
+        } catch {}
         injected = false;
         await sleep(2000);
         continue;
@@ -445,7 +464,7 @@ async function ensureTab(site) {
           target: { tabId: tab.id },
           // 与 manifest 的注入清单保持一致：dom-md 必须一起灌，否则 answerState 拿不到
           // window.__WEBAGENTS_DOMMD__，正文只能退回 innerText（表格与代码结构全丢）
-          files: ['content/dom-md.js', 'content/common.js', `content/${site}.js`],
+          files: ['content/dom-md.js', 'content/common.js', `content/${cfg?.canonical || site}.js`],
         });
       } catch (err) {
         lastErr = `补注入失败: ${err.message}`;
@@ -498,7 +517,8 @@ async function ensureContinueTab(site) {
         try { cur = await chrome.tabs.get(tab.id); } catch { /* 忽略 */ }
         try { st = await tabsCall(tab.id, { type: 'state' }); } catch (err2) { info.stateErr = String(err2.message).slice(0, 60); }
         const path = String((cur && cur.url) || '').split('?')[0].split('#')[0];
-        const onChatPage = !!cur && path !== cfg.url;   // 不在首页 = 在某个会话页里
+        const fullUrl = String((cur && cur.url) || '');
+        const onChatPage = !!cur && (path !== cfg.url || (site === 'chatglm' && /[?&]cid=/.test(fullUrl)));   // 不在首页 = 在某个会话页里
         const hasReplies = !!(st && st.ok && st.count > 0);
         info.ready = !!(r && r.ready);
         info.stateOk = !!(st && st.ok);
@@ -522,7 +542,7 @@ async function ensureContinueTab(site) {
         try {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
-            files: ['content/dom-md.js', 'content/common.js', `content/${site}.js`],
+            files: ['content/dom-md.js', 'content/common.js', `content/${cfg?.canonical || site}.js`],
           });
         } catch (err) { lastErr = `补注入失败: ${err.message}`; }
       }

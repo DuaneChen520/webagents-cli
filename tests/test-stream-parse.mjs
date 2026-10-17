@@ -301,6 +301,7 @@ console.log('\n[6] 端到端 —— 一段真实形态的流');
   check('终态为 INCOMPLETE（可被判为截断）', status, 'INCOMPLETE');
   check('文本仍有内容', P.extractMarkdown(root), '只写了一半');
   check('INCOMPLETE 属于终态集合', P.TERMINAL.has('INCOMPLETE'), true);
+  check('finish 属于终态集合（智谱清言）', P.TERMINAL.has('finish'), true);
   check('WIP 属于进行中集合', P.RUNNING.has('WIP'), true);
 }
 
@@ -379,6 +380,20 @@ console.log('\n[8] 卡片形态（mimeType）—— 千问的正文模型是 tex
 
   const emptyCards = { content: { cards: [{ mimeType: 'image/png', content: 'binary' }] } };
   check('全为非文本卡片时退而取全部（不空手而归）', P.extractMarkdown(emptyCards), 'binary');
+
+  // 智谱清言形态：parts -> content[] ({type: "text", text: "..."})
+  const glmRoot = {
+    parts: [
+      {
+        role: 'assistant',
+        content: [
+          { type: 'think', think: '这是深度思考内容，不应混入正文' },
+          { type: 'text', text: '这是智谱清言的正式回答' },
+        ],
+      },
+    ],
+  };
+  check('智谱清言 parts 结构仅提取 text 忽略 think', P.extractMarkdown(glmRoot), '这是智谱清言的正式回答');
 }
 
 console.log('\n[9] JSON 字符串负载（千问实测形态）—— 不能整条丢弃');

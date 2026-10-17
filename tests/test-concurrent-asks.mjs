@@ -11,7 +11,7 @@
  *  那层入口已随 MCP 一起移除，这里的语义不变：两个真实进程 + 同一站点 + 并发。）
  *
  * 前置：扩展已加载并登录，且已重载到含站点队列的版本。
- * 运行：node test-concurrent-asks.mjs [deepseek|qwen]
+ * 运行：node test-concurrent-asks.mjs [deepseek|qwen|chatglm]
  */
 import { spawn } from 'node:child_process';
 import path from 'node:path';

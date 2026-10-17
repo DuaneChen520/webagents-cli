@@ -320,6 +320,12 @@ console.log('[8] buildOptions：按调用指定开关（0.7.0 补，此前只有
   ok(bad(() => bo('qwen', { '--mode': 'yolo' })), 'qwen 非法模式 → 用法错误');
   ok(bad(() => bo('qwen', { '--think': 'on' })), 'qwen 用 --think → 用法错误（串站了）');
   ok(bad(() => bo('deepseek', { '--mode': 'fast' })), 'deepseek 用 --mode → 用法错误');
+  ok(JSON.stringify(bo('chatglm', { '--think': 'off', '--search': 'on' })) === JSON.stringify({ deepThink: false, search: true }),
+    'chatglm --think off --search on → {deepThink:false,search:true}');
+  ok(bo('chatglm', {}) === null, 'chatglm 不给开关 → null');
+  ok(bad(() => bo('chatglm', { '--mode': 'fast' })), 'chatglm 用 --mode → 用法错误');
+  ok(cli.normalizeSite('glm') === 'chatglm', 'glm 别名映射为 chatglm');
+  ok(cli.normalizeSite('zhipu') === 'chatglm', 'zhipu 别名映射为 chatglm');
 }
 
 wss.close();

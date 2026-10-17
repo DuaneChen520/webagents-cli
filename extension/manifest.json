@@ -26,7 +26,9 @@
     "https://chat.qianwen.com/*",
     "https://www.tongyi.com/*",
     "https://tongyi.aliyun.com/*",
-    "https://chat.aliyun.com/*"
+    "https://chat.aliyun.com/*",
+    "https://chatglm.cn/*",
+    "https://*.chatglm.cn/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -51,6 +53,18 @@
         "https://www.tongyi.com/*",
         "https://tongyi.aliyun.com/*",
         "https://chat.aliyun.com/*"
+      ],
+      "js": [
+        "content/stream-parse.js",
+        "content/stream-probe.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://chatglm.cn/*",
+        "https://*.chatglm.cn/*"
       ],
       "js": [
         "content/stream-parse.js",
@@ -93,6 +107,18 @@
         "content/dom-md.js",
         "content/common.js",
         "content/qwen.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chatglm.cn/*",
+        "https://*.chatglm.cn/*"
+      ],
+      "js": [
+        "content/dom-md.js",
+        "content/common.js",
+        "content/chatglm.js"
       ],
       "run_at": "document_idle"
     }

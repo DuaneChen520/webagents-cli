@@ -6,11 +6,12 @@
 
 ```bash
 node $WA ask deepseek "问题Q" --out q-ds.md &
-node $WA ask qwen      "问题Q" --out q-qw.md &
+node $WA ask qwen     "问题Q" --out q-qw.md &
+node $WA ask chatglm  "问题Q" --out q-glm.md &
 wait
 ```
 
-然后分别读 `q-ds.md` / `q-qw.md`（按需、可只读开头），对比后给结论。
+然后分别读 `q-ds.md` / `q-qw.md` / `q-glm.md`（按需、可只读开头），对比后给结论。
 要点：两问的 prompt 必须逐字节一致（对比才公平）；不要并发同站点。
 
 ## 剧本 2：批量任务（同站串行批处理）

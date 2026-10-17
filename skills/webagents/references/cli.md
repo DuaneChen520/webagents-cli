@@ -18,7 +18,7 @@
 | `--continue <runId>` / `last` / `here` | 同会话追问（不新开会话）：精确 runId / 该站最近成功问答 / 该站当前标签页 |
 | `--protocol <file>` | 在 prompt 末尾附加输出协议模板；缺省时**给了 `--schema` 会自动带仓库自带的 `references/protocol.md`** |
 | `--schema <file>` | 校验回复 JSON：`{"required":[...],"properties":{"k":"string"}}`，类型支持 string/number/boolean/array/object；违规自动同会话修复一次，两次违规 FAIL stage=quality |
-| `--think on\|off` / `--search on\|off` | 仅 deepseek：深度思考 / 联网搜索。不指定=跟随页面残留状态（不可复现），要可复现必须显式给 |
+| `--think on\|off` / `--search on\|off` | deepseek 与 chatglm：深度思考 / 联网搜索。不指定=跟随页面残留状态（不可复现），要可复现必须显式给 |
 | `--mode fast\|think\|research` | 仅 qwen：快速 / 深度思考 / 深入研究 |
 | `--json` | stdout 输出全量 JSON（含 runId/text/data（schema 解析结果）/diag）；文件仍落盘 |
 | `--why` | 失败时向 stderr 打印完整诊断 JSON |
@@ -74,7 +74,7 @@ done 14.7s 正文=stream md=242/0 status=FINISHED -> C:\...\outputs\rmu2xxxx.md 
 ## runs 子命令
 
 ```bash
-runs [--limit n] [--site deepseek|qwen] [--errors] [--dedupe] [--why <runId>|last]
+runs [--limit n] [--site deepseek|qwen|chatglm] [--errors] [--dedupe] [--why <runId>|last]
 ```
 
 `--why last` = 最近一次失败记录的完整 JSON + 对应段的建议。
@@ -82,7 +82,7 @@ runs [--limit n] [--site deepseek|qwen] [--errors] [--dedupe] [--why <runId>|las
 ## doctor 子命令
 
 `webagents doctor` 一键体检：版本口径（server/扩展）→ 令牌与配对 → 桥 → 扩展连接（承载/排队）→
-两个站点的会话页状态（只读 inspect，**判据是"适配器有没有应答"而不是"标签页在不在"**）→ 近 24h 失败模式统计。
+三个站点的会话页状态（只读 inspect，**判据是"适配器有没有应答"而不是"标签页在不在"**）→ 近 24h 失败模式统计。
 核心项（令牌/桥/扩展）任一不过 → 退出码 1；站点页未打开、适配器无应答、历史失败为警告级（⚠），不影响退出码。
 
 ## 后台与并行（调用方负责编排）

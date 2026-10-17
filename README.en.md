@@ -2,7 +2,7 @@
 
 **[中文](README.md) | English**
 
-Turn **web-based AI chats** like DeepSeek and Qwen (通义千问) into your subagents: an Edge extension, a local WebSocket bridge, and a set of command-line primitives that let an AI agent (a skill, a script, or you) inject prompts into those pages and capture the replies — including **dispatching tasks to several sites in parallel**.
+Turn **web-based AI chats** like DeepSeek, Qwen (通义千问), and ChatGLM (智谱清言) into your subagents: an Edge extension, a local WebSocket bridge, and a set of command-line primitives that let an AI agent (a skill, a script, or you) inject prompts into those pages and capture the replies — including **dispatching tasks to several sites in parallel**.
 
 > Reuses the sessions already logged in in your browser. No API keys, no reverse-engineered protocol.
 
@@ -20,7 +20,8 @@ server/bridge.mjs — the single bridge (ws://127.0.0.1:8765)
 Edge extension offscreen.js — the persistent WS connection (lifetime independent of the SW)
 Edge extension background.js — routing / per-site queue / completion detection
    ├─ chat.deepseek.com  persistent pinned tab (content/deepseek.js)
-   └─ www.qianwen.com    persistent pinned tab (content/qwen.js)
+   ├─ www.qianwen.com    persistent pinned tab (content/qwen.js)
+   └─ chatglm.cn         persistent pinned tab (content/chatglm.js)
 
 Each page also runs a main-world stream probe (content/stream-probe.js):
 it hooks the response stream, which yields the hard "the server closed the stream"
@@ -39,11 +40,11 @@ completion signal plus the original markdown
   - `inspect <site>` — **read-only view of the current page: no navigation, no reload**. Use it to see a CAPTCHA scene, the answer area, and the stream probe records
   - `runs` — read the run log; **first stop for troubleshooting**, no need to re-ask (`--errors` / `--why last` / `--dedupe`)
   - `status` — extension connection state (what carries the connection, per-site queue depth)
-  - `doctor` — one-shot health check: version alignment / token pairing / bridge / extension / whether both site adapters actually answer / failure patterns in the last 24h
+  - `doctor` — one-shot health check: version alignment / token pairing / bridge / extension / whether all site adapters actually answer / failure patterns in the last 24h
   - `bridge start|stop` — keep the bridge resident and tear it down explicitly (one shared connection for a long job)
 - **Conversation toggles** (pass per call with `--think/--search/--mode`, or set defaults on the extension options page):
-  - DeepSeek: `{ deepThink: true/false, search: true/false }`
-  - Qwen: `{ mode: "fast" | "think" }`
+  - DeepSeek & ChatGLM: `{ deepThink: true/false, search: true/false }`
+  - Qwen: `{ mode: "fast" | "think" | "research" }`
 - **Toolbar popup**: pin the toggles above as **forced defaults**, which override caller arguments; "default" means "don't touch whatever the page has"
 - **Parallel dispatch**: several sites can run at once (the caller spawns background CLI processes); each site has its own tab
 
@@ -171,7 +172,7 @@ readable straight out of history.
 
 1. Open `edge://extensions` and enable "Developer mode" (bottom left)
 2. "Load unpacked" → select this repository's `extension/` directory
-3. Open `chat.deepseek.com` and `www.qianwen.com` and log in
+3. Open `chat.deepseek.com`, `www.qianwen.com`, and `chatglm.cn` and log in
 4. (Optional) Pin the WebAgents toolbar icon to configure default conversation toggles
 
 ### 2. Install the dependency and bring up the bridge
